@@ -1,0 +1,230 @@
+# DriveEase Vehicle Rental System
+## Complete Setup Guide — Spring Boot + MySQL + React
+
+---
+
+## PROJECT STRUCTURE
+
+```
+vehicle-rental/
+├── pom.xml
+├── database/
+│   └── schema.sql                          ← Run this in MySQL first
+└── src/main/
+    ├── resources/
+    │   └── application.properties          ← Set your DB password here
+    └── java/com/driveease/rental/
+        ├── VehicleRentalApplication.java   ← Main entry point
+        ├── model/
+        │   ├── User.java
+        │   ├── Vehicle.java
+        │   └── Booking.java
+        ├── repository/
+        │   ├── UserRepository.java
+        │   ├── VehicleRepository.java
+        │   └── BookingRepository.java
+        ├── service/
+        │   ├── AuthService.java
+        │   ├── VehicleService.java
+        │   └── BookingService.java
+        ├── controller/
+        │   ├── AuthController.java
+        │   ├── VehicleController.java
+        │   └── BookingController.java
+        ├── dto/
+        │   ├── AuthDTO.java
+        │   └── BookingDTO.java
+        └── config/
+            ├── JwtUtil.java
+            ├── SecurityConfig.java
+            └── GlobalExceptionHandler.java
+```
+
+---
+
+## STEP 1 — Prerequisites
+
+Install the following tools:
+- Java JDK 17+           → https://adoptium.net
+- Maven 3.8+             → https://maven.apache.org
+- MySQL 8.0+             → https://dev.mysql.com/downloads
+- Eclipse / IntelliJ IDEA (recommended: IntelliJ)
+- Postman (for API testing)
+
+---
+
+## STEP 2 — Database Setup
+
+Open MySQL Workbench or command line and run:
+
+  mysql -u root -p < database/schema.sql
+
+This creates:
+  - driveease_db database
+  - users, vehicles, bookings tables
+  - Default admin user (admin / admin123)
+  - 6 sample vehicles
+
+---
+
+## STEP 3 — Configure application.properties
+
+Open: src/main/resources/application.properties
+
+Change this line to match your MySQL password:
+  spring.datasource.password=your_mysql_password
+
+---
+
+## STEP 4 — Run the Application
+
+Option A — Command Line:
+  mvn spring-boot:run
+
+Option B — Eclipse:
+  File → Import → Maven → Existing Maven Project
+  Right-click VehicleRentalApplication.java → Run As → Spring Boot App
+
+Option C — IntelliJ:
+  File → Open → select the vehicle-rental folder
+  Click the green Run button on VehicleRentalApplication.java
+
+Server starts at: http://localhost:8080
+
+---
+
+## STEP 5 — API Endpoints Reference
+
+### AUTH (Public — no token needed)
+
+  POST /api/auth/register
+  Body: { "username": "john", "email": "john@example.com", "password": "pass123" }
+  Returns: { "token": "...", "username": "john", "role": "USER", "userId": 2 }
+
+  POST /api/auth/login
+  Body: { "username": "admin", "password": "admin123" }
+  Returns: { "token": "eyJ...", "username": "admin", "role": "ADMIN", "userId": 1 }
+
+### VEHICLES (GET is public, POST/PUT/DELETE requires ADMIN token)
+
+  GET  /api/vehicles                        → All vehicles
+  GET  /api/vehicles?type=SUV               → Filter by type
+  GET  /api/vehicles?search=toyota          → Search by name
+  GET  /api/vehicles?type=SUV&search=honda  → Combined
+  GET  /api/vehicles/{id}                   → Single vehicle
+
+  POST   /api/vehicles        [ADMIN] → Add vehicle
+  PUT    /api/vehicles/{id}   [ADMIN] → Edit vehicle
+  DELETE /api/vehicles/{id}   [ADMIN] → Delete vehicle
+
+  POST /api/vehicles body example:
+  {
+    "name": "Toyota Innova",
+    "type": "MUV",
+    "emoji": "🚐",
+    "pricePerDay": 3500,
+    "seats": 8,
+    "fuelType": "Diesel"
+  }
+
+### BOOKINGS (Requires login token)
+
+  POST /api/bookings             → Create booking (USER)
+  Body: { "vehicleId": 1, "numDays": 3 }
+
+  GET  /api/bookings/my          → My bookings (USER)
+  GET  /api/bookings             → All bookings (ADMIN)
+  GET  /api/bookings/dashboard   → Stats (ADMIN)
+  PUT  /api/bookings/{id}/cancel → Cancel booking
+
+### How to use token in requests (Postman or frontend)
+
+  Add this header to every protected request:
+  Key:   Authorization
+  Value: Bearer eyJhbGciOiJIUzI1NiJ9...
+
+---
+
+## STEP 6 — Connect React Frontend
+
+In your React app, call the API like this:
+
+  // Login
+  const res = await fetch('http://localhost:8080/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
+  const data = await res.json();
+  localStorage.setItem('token', data.token);
+
+  // Get vehicles
+  const res = await fetch('http://localhost:8080/api/vehicles');
+  const vehicles = await res.json();
+
+  // Create booking (protected)
+  const token = localStorage.getItem('token');
+  const res = await fetch('http://localhost:8080/api/bookings', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + token
+    },
+    body: JSON.stringify({ vehicleId: 1, numDays: 3 })
+  });
+
+---
+
+## DATABASE TABLES EXPLAINED
+
+  users      — stores login credentials (password is BCrypt hashed, never plain text)
+  vehicles   — stores all vehicles with availability status
+  bookings   — links user + vehicle, stores amount with 18% GST, booking reference
+
+---
+
+## FOR HR INTERVIEW — HOW TO EXPLAIN
+
+  "I built a full-stack Vehicle Rental System using React for the frontend,
+   Spring Boot for the REST API backend, and MySQL for data storage.
+
+   Key features:
+   - JWT-based authentication with role-based access control (User vs Admin)
+   - CRUD operations for vehicle management
+   - Booking system with automatic GST (18%) calculation
+   - Admin dashboard with revenue and booking statistics
+   - Spring Security for endpoint protection
+   - JPA/Hibernate for database interaction (ORM)
+   - RESTful API design following industry standards"
+
+  Technologies you can mention:
+  - Spring Boot, Spring Security, Spring Data JPA
+  - JWT (JSON Web Tokens) for stateless authentication
+  - BCrypt for password hashing
+  - MySQL with foreign key relationships
+  - React with state management (useState)
+  - REST API design
+  - Maven for dependency management
+
+---
+
+## COMMON ERRORS AND FIXES
+
+  Error: "Communications link failure"
+  Fix:   MySQL is not running. Start it: sudo service mysql start
+
+  Error: "Access denied for user root"
+  Fix:   Wrong password in application.properties
+
+  Error: "Port 8080 already in use"
+  Fix:   Change to server.port=8081 in application.properties
+
+  Error: 403 Forbidden on API call
+  Fix:   Missing or wrong Authorization header. Re-login and use new token.
+
+  Error: "Could not autowire JwtFilter"
+  Fix:   Make sure SecurityConfig.java and JwtFilter are in the same package
+
+---
+
+Good luck with your project and interviews!
